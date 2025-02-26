@@ -36,6 +36,7 @@ def get_years_list(json_data: list) -> list:
 
 
 date_list = get_date_list(data)
+print(date_list)
 years_list = get_years_list(data)
 
 num_categories = len(years_list)
@@ -43,18 +44,27 @@ num_categories = len(years_list)
 fig, ax = plt.subplots()
 bars = ax.bar(years_list, np.zeros(num_categories))
 
-ax.set_ylim(0, 1000000)
+ax.set_ylim(0, 6000000)
+
+year_totals = {x: 0 for x in years_list}
 
 
 def update(frame):
+    print(frame)
     new_values = []
     for i in data:
 
         if get_date_no_year(i[1]) == date_list[frame]:
-            new_values.append(i[2])
+            year_totals[i[0]] += i[2]
+    for k, v in year_totals.items():
+        new_values.append(v)
     for bar, new_val in zip(bars, new_values):
         bar.set_height(new_val)
     ax.set_title(f"{date_list[frame]}")
+
+    # If the last frame is reached, stop the animation
+    if frame == len(date_list) - 1:
+        ani.event_source.stop()
 
     return bars
 
