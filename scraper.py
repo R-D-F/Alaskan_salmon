@@ -1,113 +1,121 @@
-import requests  # For making HTTP requests to the website
-from bs4 import BeautifulSoup  # For parsing HTML content
-import json  # For saving data in JSON format
-import time  # To add delays between requests and avoid overwhelming the server
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common import exceptions
+import requests
+import os
 
-# Base URL where fish count data is hosted
-BASE_URL = "https://www.adfg.alaska.gov/sf/FishCounts/index.cfm?ADFG=main.displayResults"
-# URL for the search page where form data is submitted
-SEARCH_URL = f"{BASE_URL}/search"
+# Initialize WebDriver
+driver = webdriver.Chrome()
+driver.get("https://www.adfg.alaska.gov/sf/FishCounts/")
+# Create a directory to save JSON files
+os.makedirs("data/json", exist_ok=True)
 
-# HTTP headers to make the request look like it's coming from a real web browser
-HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+# Locate the location dropdown
+dropdown_location = driver.find_element(By.ID, "countLocationID")
+select_location = Select(dropdown_location)
 
+options_location = select_location.options
+# Extract the text of each option into a list
+options_location_list = [option.text for option in options_location]
+# Removing "Select a Location" from the list
+for i in range(28, len(options_location_list)):
+    options_location_list.pop(28)
+print(options_location_list[0])
 
-def get_form_options():
-    """Extract available years, locations, and species from the search form."""
+manual = []
 
-    # Send an HTTP GET request to the search page to get the available options
-    response = requests.get(SEARCH_URL, headers=HEADERS)
+# Loop through each location
+for location in options_location_list:
+    select_location.select_by_visible_text(location)
+    # Find and click the Submit button
+    driver.find_element(By.NAME, "Submit").click()
 
-    # Parse the HTML response using BeautifulSoup
-    soup = BeautifulSoup(response.text, "html.parser")
+    # Wait for the page to load (you might want to wait for a specific element instead)
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.NAME, "speciesID"))
+    )
 
-    # Function to extract values from dropdown menus (HTML <select> elements)
-    def extract_options(select_name):
-        return [
-            option["value"]  # Get the value of each <option> tag
-            for option in soup.select(f'select[name="{select_name}"] option')
-            if option["value"]  # Ignore empty values
-        ]
+    # Locate the species dropdown
+    dropdown_species = driver.find_element(By.NAME, "speciesID")
+    select_species = Select(dropdown_species)
 
-    # Extract available years, locations, and species from the form
-    years = extract_options("year")
-    locations = extract_options("location")
-    species = extract_options("species")
+    options_species = select_species.options
+    options_species_list = [option.text for option in options_species]
 
-    return years, locations, species  # Return the extracted lists
+    # Loop through each species
+    for species in options_species_list:
 
+        select_species.select_by_visible_text(species)
 
-def fetch_fish_count(year, location, species):
-    """Submit the form for a specific combination and extract data."""
+        dropdown_year = driver.find_element(By.NAME, "year")
+        select_year = Select(dropdown_year)
+        options_year = select_year.options
+        options_year_list = [option.text for option in options_year]
 
-    # Create a dictionary with form data to send in the request
-    payload = {"year": year, "location": location, "species": species}
+        # Select all years
+        for option in options_year_list:
+            select_year.select_by_visible_text(option)
 
-    # Send an HTTP POST request with the form data to get the filtered results
-    response = requests.post(SEARCH_URL, data=payload, headers=HEADERS)
+        # Find and click the Submit button
+        driver.find_element(By.NAME, "Submit").click()
 
-    # Parse the response HTML using BeautifulSoup
-    soup = BeautifulSoup(response.text, "html.parser")
+        try:
+            # Wait for the JSON link to appear
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.LINK_TEXT, "JSON format"))
+            )
 
-    # Find the results table using its ID (assuming it exists on the page)
-    table = soup.find("table", {"id": "resultsTable"})
+            # Find the JSON download link
+            json_link_element = driver.find_element(By.LINK_TEXT, "JSON format")
+            # Extract the URL
+            json_url = json_link_element.get_attribute("href")
 
-    # If no table is found, return None (no data available)
-    if not table:
-        return None
-
-    data = []  # List to store extracted fish count data
-
-    # Loop through all rows in the table, skipping the first row (header)
-    for row in table.find_all("tr")[1:]:
-        cols = row.find_all("td")  # Get all columns (cells) in the row
-        data.append(
-            {  # Store the extracted date and count as a dictionary
-                "date": cols[
-                    0
-                ].text.strip(),  # First column: date (strip removes extra spaces)
-                "count": int(
-                    cols[1].text.strip()
-                ),  # Second column: fish count (converted to an integer)
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+                "Referer": "https://www.adfg.alaska.gov",
             }
-        )
+            # Download the JSON file
+            response = requests.get(json_url, headers=headers)
 
-    return data  # Return the extracted fish count data
+            # Save the JSON file
+            if response.status_code == 200:
+                with open(f"data/json/{location}_{species}.json", "wb") as file:
+                    file.write(response.content)
+                print(
+                    f"JSON file for {location} and {species} downloaded successfully!"
+                )
+            else:
+                print(
+                    f"Failed to download JSON for {location} and {species}. Status Code: {response.status_code}"
+                )
 
+        except exceptions.TimeoutException as e:
+            manual.append(f"{location}: {species}")
+        finally:
+            # Go back to the species selection page
+            driver.back()
+            # Wait until the species dropdown is present again
+            WebDriverWait(driver, 10).until(
+                EC.presence_of_element_located((By.NAME, "speciesID"))
+            )
 
-def main():
-    """Main function to fetch and save fish count data."""
+            # Re-locate the species dropdown after going back
+            dropdown_species = driver.find_element(By.NAME, "speciesID")
+            select_species = Select(dropdown_species)
 
-    # Get available options for years, locations, and species
-    years, locations, species = get_form_options()
+    # Go back to the location selection page
+    driver.back()
+    # Wait until the location dropdown is present again
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.ID, "countLocationID"))
+    )
 
-    fish_counts = {}  # Dictionary to store all retrieved fish count data
+    # Re-locate the location dropdown after going back
+    dropdown_location = driver.find_element(By.ID, "countLocationID")
+    select_location = Select(dropdown_location)
 
-    # Loop through all combinations of year, location, and species
-    for year in years:
-        for location in locations:
-            for fish in species:
-                print(f"Fetching data for {year} - {location} - {fish}...")
-
-                # Fetch fish count data for the given combination
-                data = fetch_fish_count(year, location, fish)
-
-                # If data is found, store it in the dictionary
-                if data:
-                    fish_counts.setdefault(year, {}).setdefault(location, {})[
-                        fish
-                    ] = data
-
-                # Wait 1 second before making the next request (to avoid overloading the server)
-                time.sleep(1)
-
-    # Save the collected data to a JSON file
-    with open("fish_counts.json", "w") as f:
-        json.dump(fish_counts, f, indent=4)  # Format the JSON for readability
-
-    print("Data saved to fish_counts.json")
-
-
-# Run the main function if the script is executed directly
-if __name__ == "__main__":
-    main()
+# Close the driver after all downloads
+driver.quit()
+print(f"TODO:\n{manual}")
