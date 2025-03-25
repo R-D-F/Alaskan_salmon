@@ -4,9 +4,9 @@ import matplotlib.animation as animation
 import numpy as np
 
 
-with open("nushagak_2020_2024.json", "r") as file:
+with open(r"data\json\combined.json", "r") as file:
     full_json_data = json.load(file)
-    data = full_json_data["DATA"]
+    print(full_json_data[0])
 
 
 def get_date_no_year(date_time: str) -> str:
