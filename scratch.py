@@ -1,13 +1,25 @@
 import json
 
-file = r"data\json\raw\Afognak River (Litnik)_Chinook.json"
+file = r"data\json\combined.json"
 
-combined_data = []
+locations = []
+with open(file, "r") as f:
+    data = json.load(f)["DATA"]
+    for i in data:
+        if i[5] in locations:
+            pass
+        else:
+            locations.append(i[5])
 
-with open(file, "r", encoding="utf-8") as f:
-    data = json.load(f)
-    # print(data["DATA"])
-    combined_data.append(data["DATA"])
+in_both = []
+stream_list = r"data\json\streams_list.json"
+with open(stream_list, "r") as f:
+    streams = json.load(f)
+    for i in locations:
+        if i in streams:
+            in_both.append(i)
 
-with open(r"data\json\combined.json", "w", encoding="utf-8") as f:
-    json.dump(combined_data[0], f, indent=4)
+
+for i in locations:
+    if i not in in_both:
+        print(i)
