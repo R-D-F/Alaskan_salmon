@@ -1,4 +1,5 @@
 import json
+import rapidfuzz
 
 file = r"data\json\combined.json"
 
@@ -11,15 +12,20 @@ with open(file, "r") as f:
         else:
             locations.append(i[5])
 
-in_both = []
+to_fuzz = []
 stream_list = r"data\json\streams_list.json"
+
+# print(f"gdb data {locations}")
+streams = []
 with open(stream_list, "r") as f:
     streams = json.load(f)
     for i in locations:
-        if i in streams:
-            in_both.append(i)
+        if i not in streams:
+            to_fuzz.append(i)
 
-
-for i in locations:
-    if i not in in_both:
-        print(i)
+for i in to_fuzz:
+    best_match = rapidfuzz.process.extractOne(
+        i, streams, scorer=rapidfuzz.fuzz.ratio
+    )
+    print(f"From JSON {i} {best_match}")
+    print("\n")
