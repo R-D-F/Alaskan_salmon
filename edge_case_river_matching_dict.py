@@ -1,0 +1,18 @@
+x = {
+    "Afognak River (Litnik)": "Afognak River",
+    "Copper River (Miles L)": "Copper River",
+    "Deshka": "Deshka River / Kroto Creek",
+    "Jim Creek": "Jims Creek",
+    "Kasilof River (sockeye)": "Kasilof River",
+    "Kenai River (Chinook)": "Kenai River",
+    "Kenai River (late-run sockeye)": "Kandik River",
+    "Klag": None,
+    "Little Susitna": "Little Susitna River",
+    "McLees Lake": None,
+    "Nelson River (Sapsuk)": "Necons River",
+    "Olga Creek (Upper Station)": "Olga Creek",
+    "Orzinski Lake": None,
+    "Pasagshak": "*Pasagshak River",
+    "Pauls Bay River": None,
+    "Redoubt Lake": None,
+}
