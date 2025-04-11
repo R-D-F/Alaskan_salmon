@@ -4,3 +4,5 @@
 # Ignore json data
 data/
 
+# Ignore Arc_Pro
+arc_pro/
